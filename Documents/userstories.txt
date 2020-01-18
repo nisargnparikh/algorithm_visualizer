@@ -1,0 +1,14 @@
+USER STORIES:
+
+
+As a User, I would like the software to visualize different algorithms so that it helps me to understand the algorithm better and improve my knowledge.
+As a User, I would like have an option to select different algorithms for visualization.
+As a User, I would like to provide my own input for the algorithm visualization. 
+As a User, I want the software to be in the form of a Desktop application where I can view Algorithms.
+As a User, I would like the User interface to be intuitive i.e. easier to understand and get used to.
+As a User, I want that whenever I select an algorithm, it should open in the same window rather than a new tab to avoid complexity. 
+As a User, I want that every algorithm visualization page should have a back button or a side menu where I can select any other algorithm to visualize. 
+As a User, I would like to be able to view the pseudocode of the algorithm that I’m visualizing.
+As a User, I want the algorithm page to display a brief explanation of the working of the algorithm for educational reasons.
+As a User, I want the software application to have a search toolbar where I can search for a particular algorithm. 
+
