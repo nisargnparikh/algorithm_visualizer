@@ -1,1 +1,108 @@
-th
+SOFTWARE REQUIREMENT SPECIFICATION:
+
+
+The Purpose of the Product: 
+	The purpose of this document is to build a Desktop application
+	To learn and understand the algorithms easily with the help of visualization. 
+
+Client, Customer and other Stakeholders:
+	- This project is an online educational system and it is restricted within the college premises. This has been implemented under the guidance of college professors. This project is useful for algorithm visualization.
+	- Developers
+	- Professor
+	- Tester
+	- Designer
+
+Users of the Product:
+	- Schools
+	- Universities
+	- Students who want to learn about algorithms.
+
+Mandated Constraints:
+	- The solution or final product should be a Desktop application.
+	- The time for completion of the software project should be within 2 months.
+	- The workplace environment should be friendly and welcoming. 
+	- Proper Workplace ethics should be followed.
+	- The project should be completed without any financial resources.
+	- The project should not depend on the Operating System.
+
+Naming Conventions and definitions:
+	- DFS is used for Depth-First Search. 
+	- UI is used for User Interface.
+	- API is used for Application programming interface.
+	- JS for Javascript.
+
+Relevant facts and assumptions:
+	- The User has some basic knowledge about the algorithms.
+
+The Scope of Work:
+	- The project will have a UI and a backend Development.
+	- It will be divided in different areas: front-end, back-end, Testing, Reviewing, Backlog. 
+The Scope of Product:
+	The purpose of the algorithm visualization system is to ease learning and to create a convenient and easy-to-use application for students, trying to visualize different algorithms. The system is based on implementation of commonly used algorithms and its working. Above all, we hope to provide a comfortable user experience.
+	- Product will mostly be used for educational purposes.
+	- Users will include students from universities, colleges, etc.
+
+Functional and Data Requirements:
+	- There should be menu for selection of algorithms.
+	- There should be a Search toolbox to search for a particular algorithm.
+	- Any selected algorithm should open on the same page. 
+	- There should be an option to go to the previous page.
+	- The user should be able to give input for visualization. 
+ Software Quality Attributes:
+AVAILABILITY: The application should be available on the specified date and specified time as many users are relying on it. As the application is standalone, it does not depend on any server database, there is no concern of keeping that kind of components up and running at all times. This indicates there will be no availability problems.
+CORRECTNESS: The Algorithm visualization should display correct visualization.
+MAINTAINABILITY: The application should be testes and maintained frequently i.e. twice a week.
+USABILITY: The Application should satisfy a maximum number of customers/user needs.
+SUPPORTABILITY: Support for any kind of problem can be provided by the forums involving developers I.e community, as it is expected for any open-source project, and the mean time to repair is tried to be kept at minimum via supplying and maintaining the most beneficial information. 
+
+Look and Feel Requirements :
+	- The UI should be easy to understand and simple to get used to.
+	- Proper menu for algorithm selection. 
+	- Algorithm selection menu should be user-friendly.
+
+Usability Requirements:
+	- The application should be easy to use so that users can learn easily.
+	- The user does not need to tackle with any problems regarding UI as it aims to be simple but functional one.
+	- It is expected that the user would not need to use any broad documentation or any other 3rd party services related to UI usage.
+	- All API has a learning curve. However, API of our software requires relatively shorter time when compared to other competitors. There are two reasons for that. First, API in our project is designed in a way that learning it takes a little time for users. Second, the target audience of the project is people who are already interested in Algorithm design and analysis, they are already accustomed to using much harder environments, therefore algorithm visualizer is an easy toolkit for them.
+	- The time for providing the resulting visualization are aimed to be kept minimum.
+
+ System Requirements:
+	- Frontend for comfortable user interaction and backend for information processing.
+	- Scalability to accommodate the project’s future expansion.
+
+Performance Requirements:
+	- The processing time should be as low as possible i.e the algorithm should load and visualize without buffering.
+	- As long as there is no problem with user’s own operating system, the program should be expected to go on smoothly.
+
+Operational Requirements:
+	- The expected physical environment should be the university.
+	- The technological environment includes:
+		- Platform: Javascript, React JS
+
+ Hardware requirements:
+	- In order for the application to operate properly, only basic peripheral devices: a keyboard, a mouse and a display screen are required. Although graphics tablets are supported by the legacy software, they are not a requirement for this project.
+
+Maintainability and Portability Requirements:
+	- The application should undergo maintenance at least once a week until there is an issue.
+
+Off-the shelf solutions:
+	- There are solutions available online but they are not very understandable and some of them are paid.
+
+Tasks:
+ 	- Defining Phase
+	- Planning Phase
+	- Requirements Specification
+	- Design Phase
+	- Implementation Phase
+	- Integration Phase
+	- Maintenance Phase
+
+20. User Documentation and Training:
+	- No user training is required as the application is self-understandable.
+
+
+
+
+
+
