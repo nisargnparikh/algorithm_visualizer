@@ -33,6 +33,7 @@ function generateMaze(cellWidth, cellHeight) {
     else if (d0 === W) x1 = x0 - 1, y1 = y0, d1 = E;
     else x1 = x0 + 1, y1 = y0, d1 = W;
 
+
     if (open) {
       cells[i0] |= d0, cells[i1] |= d1;
       if (y1 > 0 && cells[i1 - cellWidth] == null) frontier.push({index: i1, direction: N});
