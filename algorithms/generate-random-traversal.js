@@ -45,6 +45,7 @@ function generateMaze(cellWidth, cellHeight) {
   return cells;
 }
 
+
 function popRandom(array) {
   if (!array.length) return;
   var n = array.length, i = Math.random() * n | 0, t;
