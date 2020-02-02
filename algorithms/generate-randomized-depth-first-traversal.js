@@ -3,6 +3,7 @@ var N = 1 << 0,
     W = 1 << 2,
     E = 1 << 3;
 
+
 self.addEventListener("message", function(event) {
   postMessage(generateMaze(event.data.width, event.data.height));
 });
