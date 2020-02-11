@@ -45,7 +45,6 @@ function generateMaze(cellWidth, cellHeight) {
   return cells;
 }
 
-
 function minHeap(compare) {
   var heap = {},
       array = [],
