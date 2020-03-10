@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html class="ocks-org do-not-copy">
+
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<meta charset="utf-8">
+<title>Poisson's Distribution</title>
+<style>
+
+@import url(../styleb121.css?aea6f0a);
+
+.slide {
+  margin: 2em 0 2em 0;
+}
+
+.slide iframe {
+  background: #fff;
+  border: solid 1px #ddd;
+}
+
+.animation {
+  position: relative;
+  cursor: pointer;
+}
+
+.animation--playing button {
+  opacity: 0;
+}
+
+.animation button {
+  cursor: pointer;
+  position: absolute;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: solid 1px #ccc;
+  color: #333;
+  background: #fff;
+  bottom: 20px;
+  left: 20px;
+}
+
+.animation:not(.animation--playing) button {
+  transition: opacity 250ms linear;
+  transition-delay: 2s;
+}
+
+.animation:hover button {
+  border-color: #000;
+  color: #000;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2);
+}
+
+.animation button:focus {
+  outline: none;
+}
+
+.animation--playing button,
+.animation:active button {
+  box-shadow: inset 0 0 4px rgba(0,0,0,.2) !important;
+}
+
+</style>
+
+<header>
+</header>
+<!-- script -->
+
+
+<script src="d3.min.js"></script>
+<script>
+
+function uniformRandomSampler(width, height, numSamplesMax) {
+  var numSamples = 0;
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    return [Math.random() * width, Math.random() * height];
+  };
+}
+
+function bestCandidateSampler(width, height, numCandidates, numSamplesMax) {
+  var numSamples = 0;
+
+  var quadtree = d3.geom.quadtree()
+      .extent([[0, 0], [width, height]])
+      ([[Math.random() * width, Math.random() * height]]);
+
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    var bestCandidate, bestDistance = 0;
+    for (var i = 0; i < numCandidates; ++i) {
+      var c = [Math.random() * width, Math.random() * height],
+          d = distance(quadtree.find(c[0], c[1]), c);
+      if (d > bestDistance) {
+        bestDistance = d;
+        bestCandidate = c;
+      }
+    }
+    quadtree.add(bestCandidate);
+    return bestCandidate;
+  };
+
+  function distance(a, b) {
+    var dx = a[0] - b[0],
+        dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+  }
+}
+
+// Based on http://www.jasondavies.com/poisson-disc/
+function poissonDiscSampler(width, height, radius) {
+  var k = 30, // maximum number of samples before rejection
+      radius2 = radius * radius,
+      R = 3 * radius2,
+      cellSize = radius * Math.SQRT1_2,
+      gridWidth = Math.ceil(width / cellSize),
+      gridHeight = Math.ceil(height / cellSize),
+      grid = new Array(gridWidth * gridHeight),
+      queue = [],
+      queueSize = 0,
+      sampleSize = 0;
+
+  return function() {
+    if (!sampleSize) return sample(Math.random() * width, Math.random() * height);
+
+    // Pick a random existing sample and remove it from the queue.
+    while (queueSize) {
+      var i = Math.random() * queueSize | 0,
+          s = queue[i];
+
+      // Make a new candidate between [radius, 2 * radius] from the existing sample.
+      for (var j = 0; j < k; ++j) {
+        var a = 2 * Math.PI * Math.random(),
+            r = Math.sqrt(Math.random() * R + radius2),
+            x = s[0] + r * Math.cos(a),
+            y = s[1] + r * Math.sin(a);
+
+        // Reject candidates that are outside the allowed extent,
+        // or closer than 2 * radius to any existing sample.
+        if (0 <= x && x < width && 0 <= y && y < height && far(x, y)) return sample(x, y);
+      }
+
+      queue[i] = queue[--queueSize];
+      queue.length = queueSize;
+    }
+  };
+
+  function far(x, y) {
+    var i = x / cellSize | 0,
+        j = y / cellSize | 0,
+        i0 = Math.max(i - 2, 0),
+        j0 = Math.max(j - 2, 0),
+        i1 = Math.min(i + 3, gridWidth),
+        j1 = Math.min(j + 3, gridHeight);
+
+    for (j = j0; j < j1; ++j) {
+      var o = j * gridWidth;
+      for (i = i0; i < i1; ++i) {
+        if (s = grid[o + i]) {
+          var s,
+              dx = s[0] - x,
+              dy = s[1] - y;
+          if (dx * dx + dy * dy < radius2) return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function sample(x, y) {
+    var s = [x, y];
+    queue.push(s);
+    grid[gridWidth * (y / cellSize | 0) + (x / cellSize | 0)] = s;
+    ++sampleSize;
+    ++queueSize;
+    return s;
+  }
+}
+
+function minHeap(compare) {
+  var heap = {},
+      array = [],
+      size = 0;
+
+  heap.empty = function() {
+    return !size;
+  };
+
+  heap.push = function(value) {
+    up(array[size] = value, size++);
+    return size;
+  };
+
+  heap.pop = function() {
+    if (size <= 0) return;
+    var removed = array[0], value;
+    if (--size > 0) value = array[size], down(array[0] = value, 0);
+    return removed;
+  };
+
+  function up(value, i) {
+    while (i > 0) {
+      var j = ((i + 1) >> 1) - 1,
+          parent = array[j];
+      if (compare(value, parent) >= 0) break;
+      array[i] = parent;
+      array[i = j] = value;
+    }
+  }
+
+  function down(value, i) {
+    while (true) {
+      var r = (i + 1) << 1,
+          l = r - 1,
+          j = i,
+          child = array[j];
+      if (l < size && compare(array[l], child) < 0) child = array[j = l];
+      if (r < size && compare(array[r], child) < 0) child = array[j = r];
+      if (j === i) break;
+      array[i] = child;
+      array[i = j] = value;
+    }
+  }
+
+  return heap;
+}
+
+// queue
+!function(){function n(n){function e(){for(;i=a<c.length&&n>p;){var u=a++,e=c[u],o=t.call(e,1);o.push(l(u)),++p,e[0].apply(null,o)}}function l(n){return function(u,t){--p,null==s&&(null!=u?(s=u,a=d=0/0,o()):(c[n]=t,--d?i||e():o()))}}function o(){null!=s?m(s):f?m(s,c):m.apply(null,[s].concat(c))}var r,i,f,c=[],a=0,p=0,d=0,s=null,m=u;return n||(n=1/0),r={defer:function(){return s||(c.push(arguments),++d,e()),r},await:function(n){return m=n,f=!1,d||o(),r},awaitAll:function(n){return m=n,f=!0,d||o(),r}}}function u(){}var t=[].slice;n.version="1.0.7","function"==typeof define&&define.amd?define(function(){return n}):"object"==typeof module&&module.exports?module.exports=n:this.queue=n}();
+
+// cubehelix
+!function(){function t(t){return function(e,i){e=d3.hsl(e),i=d3.hsl(i);var r=(e.h+120)*a,h=(i.h+120)*a-r,s=e.s,l=i.s-s,o=e.l,u=i.l-o;return isNaN(l)&&(l=0,s=isNaN(s)?i.s:s),isNaN(h)&&(h=0,r=isNaN(r)?i.h:r),function(a){var e=r+h*a,i=Math.pow(o+u*a,t),c=(s+l*a)*i*(1-i);return"#"+n(i+c*(-.14861*Math.cos(e)+1.78277*Math.sin(e)))+n(i+c*(-.29227*Math.cos(e)-.90649*Math.sin(e)))+n(i+c*1.97294*Math.cos(e))}}}function n(t){var n=(t=0>=t?0:t>=1?255:0|255*t).toString(16);return 16>t?"0"+n:n}var a=Math.PI/180;d3.scale.cubehelix=function(){return d3.scale.linear().range([d3.hsl(300,.5,0),d3.hsl(-240,.5,1)]).interpolate(d3.interpolateCubehelix)},d3.interpolateCubehelix=t(1),d3.interpolateCubehelix.gamma=t}();
+
+(function() {
+  var color = d3.scale.cubehelix()
+      .domain([0, 180, 360])
+      .range([
+        d3.hsl(-100, 0.75, 0.35),
+        d3.hsl(  80, 1.50, 0.80),
+        d3.hsl( 260, 0.75, 0.35)
+      ]);
+
+  floodColor = function(distance) {
+    return color(distance % 360);
+  };
+})();
+
+(function() {
+  var count = 0,
+      overshoot = 300;
+
+  function whenBoundsVisible(computeBounds, callback) {
+    var id = ".visible-" + ++count,
+        self = d3.select(window),
+        bounds;
+
+    if (document.readyState === "loading") self.on("load" + id, loaded);
+    else loaded();
+
+    function loaded() {
+      self
+          .on("resize" + id, resized)
+          .on("scroll" + id, scrolled)
+          .each(resized);
+    }
+
+    function resized() {
+      bounds = computeBounds();
+      if (bounds[1] < bounds[0]) bounds.reverse();
+      scrolled();
+    }
+
+    function scrolled() {
+      if (bounds[0] <= pageYOffset && pageYOffset <= bounds[1]) {
+        callback(null);
+        self.on(id, null);
+      }
+    }
+  }
+
+  beforeVisible = function(element, callback) {
+    return whenBoundsVisible(function() {
+      var rect = element.getBoundingClientRect();
+      return [
+        rect.top + pageYOffset - innerHeight - overshoot,
+        rect.bottom + pageYOffset + overshoot
+      ];
+    }, callback);
+  };
+
+  whenFullyVisible = function(element, callback) {
+    return whenBoundsVisible(function() {
+      var rect = element.getBoundingClientRect();
+      return [
+        rect.bottom + pageYOffset - innerHeight,
+        rect.top + pageYOffset
+      ];
+    }, callback);
+  };
+})();
+
+</script>
+<!-- script end -->
+<h1>Poisson's Distribution</h1>
+<p>Creating a Poisson-disc distribution is hard. (More on that in a bit.) So here’s a simple approximation known as Mitchell’s best-candidate algorithm.
+
+
+
+<p class="animation" id="best-candidate-sampling"><script>(function() {
+
+var margin = 3,
+    width = 960 - margin - margin,
+    height = 360 - margin - margin;
+
+var numSamplesPerFrame = 10,
+    numSamples = 2000,
+    numCandidates = 10,
+    timerActive = 0;
+
+var p = d3.select("#best-candidate-sampling")
+    .on("click", click);
+
+var svg = p.append("svg")
+    .attr("width", width + margin + margin)
+    .attr("height", height + margin + margin)
+  .append("g")
+    .attr("transform", "translate(" + margin + "," + margin + ")");
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+function click() {
+  var sample = bestCandidateSampler(width, height, numCandidates, numSamples),
+      timer = ++timerActive;
+
+  svg.selectAll("circle").remove();
+  p.classed("animation--playing", true);
+
+  d3.timer(function() {
+    if (timerActive !== timer) return true;
+    for (var i = 0; i < numSamplesPerFrame; ++i) {
+      var s = sample();
+      if (!s) return p.classed("animation--playing", false), true;
+
+      svg.append("circle")
+          .attr("cx", s[0])
+          .attr("cy", s[1])
+          .attr("r", 1e-6)
+        .transition()
+          .attr("r", 2);
+    }
+  });
+}
+
+})()</script>
+
+<p>You can see from these dots that best-candidate sampling produces a pleasing random distribution. It’s not without flaws: there are too many samples in some areas (oversampling), and not enough in other areas (undersampling). But it’s reasonably good, and just as important, easy to implement.
+
+<p>Here’s how it works:
+
+<style>
+
+#best-candidate-explainer svg {
+  border: solid 1px #ccc;
+}
+
+#best-candidate-explainer .candidate .point {
+  fill: #ccc;
+  transition: fill 250ms linear;
+}
+
+#best-candidate-explainer .candidate .search {
+  fill: none;
+  stroke: #ccc;
+  transition: stroke 250ms linear, stroke-width 250ms linear;
+}
+
+#best-candidate-explainer .candidate--best .point {
+  fill: #f00;
+}
+
+#best-candidate-explainer .candidate--best .search {
+  stroke: #f00;
+  stroke-width: 1.5px;
+}
+
+</style>
+<p class="animation" id="best-candidate-explainer"><script>(function() {
+
+var width = 960,
+    height = 500;
+
+var numCandidates = 10,
+    numSamplesMax = 1000;
+
+var p = d3.select("#best-candidate-explainer")
+    .on("click", click);
+
+var svg = p.append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var gCandidate = svg.append("g")
+    .attr("class", "candidate");
+
+var gPoint = svg.append("g")
+    .attr("class", "point");
+
+p.append("button")
+    .text("▶ Play");
+
+beforeVisible(p.node(), click);
+
+function click() {
+  var numSamples = 1;
+
+  var quadtree = d3.geom.quadtree()
+      .extent([[0, 0], [width, height]])
+      ([[Math.random() * width, Math.random() * height]]);
+
+  gCandidate.selectAll("*")
+      .interrupt()
+      .remove();
+
+  gPoint.selectAll("*")
+      .interrupt()
+      .remove();
+
+  gPoint.append("circle")
+      .attr("r", 3.5)
+      .attr("cx", quadtree.point[0])
+      .attr("cy", quadtree.point[1]);
+
+  p
+      .classed("animation--playing", true);
+
+  (function nextPoint() {
+    var i = 0,
+        maxDistance = -Infinity,
+        bestCandidate = null;
+
+    (function nextCandidate() {
+      if (++i > numCandidates) {
+        gCandidate.selectAll("*").transition()
+            .style("opacity", 0)
+            .remove();
+
+        gPoint.append("circle")
+            .attr("r", 3.5)
+            .attr("cx", bestCandidate.__data__[0])
+            .attr("cy", bestCandidate.__data__[1]);
+
+        quadtree.add(bestCandidate.__data__);
+
+        if (++numSamples < numSamplesMax) beforeVisible(p.node(), nextPoint);
+        else p.classed("animation--playing", false);
+
+        return;
+      }
+
+      var x = Math.random() * width,
+          y = Math.random() * height,
+          closest = quadtree.find(x, y),
+          dx = closest[0] - x,
+          dy = closest[1] - y,
+          distance = Math.sqrt(dx * dx + dy * dy);
+
+      var g = gCandidate.insert("g", "*")
+          .datum([x, y])
+          .attr("class", "candidate--current");
+
+      g.append("circle")
+          .attr("class", "search")
+          .attr("r", 3.5)
+          .attr("cx", x)
+          .attr("cy", y);
+
+      g.append("line")
+          .attr("class", "search")
+          .attr("x1", x)
+          .attr("y1", y)
+          .attr("x2", x)
+          .attr("y2", y);
+
+      g.append("circle")
+          .attr("class", "point")
+          .attr("r", 3.5)
+          .attr("cx", x)
+          .attr("cy", y);
+
+      var t = g.transition()
+          .duration(750)
+          .each("end", function() {
+            if (distance > maxDistance) {
+              d3.select(bestCandidate).attr("class", null);
+              d3.select(this.parentNode.appendChild(this)).attr("class", "candidate--best");
+              bestCandidate = this;
+              maxDistance = distance;
+            } else {
+              d3.select(this).attr("class", null);
+            }
+            nextCandidate();
+          });
+
+      t.select("circle.search")
+          .attr("r", distance);
+
+      t.select("line.search")
+          .attr("x2", closest[0])
+          .attr("y2", closest[1]);
+    })();
+  })();
+}
+
+})()</script>
+
+<aside><a href="http://bl.ocks.org/mbostock/d7bf3bd67d00ed79695b">Best-candidate</a></aside>
+
+<p>For each new sample, the best-candidate algorithm generates a fixed number of candidates, shown in gray. (Here, that number is 10.) Each candidate is chosen uniformly from the sampling area.
+
+<p>The <i>best candidate</i>, shown in red, is the one that is farthest away from all previous samples, shown in black. The distance from each candidate to the closest sample is shown by the associated line and circle: notice that there are no other samples inside the gray or red circles. After all candidates are created and distances measured, the best candidate becomes the new sample, and the remaining candidates are discarded.
+
+<p>Now here’s the code:
+
+<pre><code class="javascript">function sample() {
+  var bestCandidate, bestDistance = 0;
+  for (var i = 0; i < numCandidates; ++i) {
+    var c = [Math.random() * width, Math.random() * height],
+        d = distance(findClosest(samples, c), c);
+    if (d > bestDistance) {
+      bestDistance = d;
+      bestCandidate = c;
+    }
+  }
+  return bestCandidate;
+}</code></pre>
+
+<p>As I explained the algorithm above, I will let the code stand on its own. (And the purpose of this essay is to let you study code through visualization, besides.) But I will clarify a few details:
+
+<p>The external <code>numCandidates</code> defines the number of candidates to create per sample. This parameter lets you trade-off speed with quality. The lower the number of candidates, the faster it runs. Conversely, the higher the number of candidates, the better the sampling quality.
+
+<p>The <code>distance</code> function is simple geometry:
+
+<pre><code>function distance(a, b) {
+  var dx = a[0] - b[0],
+      dy = a[1] - b[1];
+  return Math.sqrt(dx * dx + dy * dy);
+}</code></pre>
+
+<aside style="margin-top:-6em;">You can omit the <code>sqrt</code> here, if you want, since it’s a monotonic function and doesn’t change the determination of the best candidate.</aside>
+
+<p>The <code>findClosest</code> function returns the closest sample to the current candidate. This can be done by brute force, iterating over every existing sample. Or you can accelerate the search, say by <a href="http://bl.ocks.org/mbostock/9078690">using a quadtree</a>. Brute force is simple to implement but very slow (quadratic time, in <a href="https://en.wikipedia.org/wiki/Big_O_notation">O-notation</a>). The accelerated approach is much faster, but more work to implement.
