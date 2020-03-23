@@ -7,6 +7,7 @@ self.addEventListener("message", function(event) {
   postMessage(generateMaze(event.data.width, event.data.height));
 });
 
+
 function generateMaze(width, height) {
   var cells = new Array(width * height), // each cell’s edge bits
       remaining = range(width * height), // cell indexes to visit
