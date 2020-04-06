@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html class="ocks-org do-not-copy">
+
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<meta charset="utf-8">
+<title>Fischer Yattes Shuffle</title>
+<style>
+
+@import url(../styleb121.css?aea6f0a);
+
+.slide {
+  margin: 2em 0 2em 0;
+}
+
+.slide iframe {
+  background: #fff;
+  border: solid 1px #ddd;
+}
+
+.animation {
+  position: relative;
+  cursor: pointer;
+}
+
+.animation--playing button {
+  opacity: 0;
+}
+
+.animation button {
+  cursor: pointer;
+  position: absolute;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: solid 1px #ccc;
+  color: #333;
+  background: #fff;
+  bottom: 20px;
+  left: 20px;
+}
+
+.animation:not(.animation--playing) button {
+  transition: opacity 250ms linear;
+  transition-delay: 2s;
+}
+
+.animation:hover button {
+  border-color: #000;
+  color: #000;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2);
+}
+
+.animation button:focus {
+  outline: none;
+}
+
+.animation--playing button,
+.animation:active button {
+  box-shadow: inset 0 0 4px rgba(0,0,0,.2) !important;
+}
+
+</style>
+
+<header>
+</header>
+<!-- script -->
+
+
+<script src="d3.min.js"></script>
+<script>
+
+function uniformRandomSampler(width, height, numSamplesMax) {
+  var numSamples = 0;
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    return [Math.random() * width, Math.random() * height];
+  };
+}
+
+function bestCandidateSampler(width, height, numCandidates, numSamplesMax) {
+  var numSamples = 0;
+
+  var quadtree = d3.geom.quadtree()
+      .extent([[0, 0], [width, height]])
+      ([[Math.random() * width, Math.random() * height]]);
+
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    var bestCandidate, bestDistance = 0;
+    for (var i = 0; i < numCandidates; ++i) {
+      var c = [Math.random() * width, Math.random() * height],
+          d = distance(quadtree.find(c[0], c[1]), c);
+      if (d > bestDistance) {
+        bestDistance = d;
+        bestCandidate = c;
+      }
+    }
+    quadtree.add(bestCandidate);
+    return bestCandidate;
+  };
+
+  function distance(a, b) {
+    var dx = a[0] - b[0],
+        dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+  }
+}
+
+</script>
+
+<h1>Shuffling</h1>
+
+<h2><a href="#shuffling" name="shuffling">#</a>Shuffling</h2>
+
+<p>Shuffling is the process of rearranging an array of elements randomly. For example, you might shuffle a deck of cards before dealing a poker game. A good shuffling algorithm is unbiased, where every ordering is equally likely.
+
+<p>The Fisher–Yates shuffle is an optimal shuffling algorithm. Not only is it unbiased, but it runs in linear time, uses constant space, and is easy to implement.
+
+<pre><code class="javascript">function shuffle(array) {
+  var n = array.length, t, i;
+  while (n) {
+    i = Math.random() * n-- | 0; // 0 ≤ i < n
+    t = array[n];
+    array[n] = array[i];
+    array[i] = t;
+  }
+  return array;
+}</code></pre>
+
+<p>Above is the code, and below is a visual explanation:
+
+<style>
+
+.shuffle .line {
+  stroke: #aaa;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  transition: all 500ms linear;
+}
+
+.shuffle .line--active {
+  stroke: #f00;
+  stroke-width: 3px;
+}
+
+.shuffle .line--inactive {
+  stroke: #000;
+}
+
+</style>
+<p id="fisher-yates-shuffle" class="animation shuffle"><script>(function() {
+
+var n = 120,
+    array = d3.range(n).map(function(d, i) { return {value: d, index: i}; });
+
+var margin = {top: 60, right: 60, bottom: 60, left: 60},
+    width = 960 - margin.left - margin.right,
+    height = 180 - margin.top - margin.bottom;
+
+var x = d3.scale.ordinal()
+    .domain(d3.range(n))
+    .rangePoints([0, width]);
+
+var a = d3.scale.linear()
+    .domain([0, n - 1])
+    .range([-45, 45]);
+
+var p = d3.select("#fisher-yates-shuffle")
+    .on("click", click);
+
+var svg = p.append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var line = svg.append("g")
+  .selectAll("line")
+    .data(array)
+  .enter().append("line")
+    .attr("class", "line line--inactive")
+    .attr("transform", transform)
+    .attr("y2", -height);
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+function click() {
+  var swaps = shuffle(array.slice()).reverse(),
+      swapped = array.slice();
+
+  p
+      .classed("animation--playing", true);
+
+  line
+      .each(function(d, i) { d.index = i; })
+      .attr("transform", transform)
+      .attr("class", "line")
+      .interrupt();
+
+  (function nextTransition() {
+    var swap = swaps.pop(),
+        i = swap[0],
+        j = swap[1],
+        t;
+
+    t = swapped[i];
+    swapped[i] = swapped[j];
+    swapped[j] = t;
+    swapped[i].index = i;
+    swapped[j].index = j;
+
+    d3.selectAll([line[0][swapped[j].value], line[0][swapped[i].value]])
+        .attr("class", "line line--active")
+        .each(function() { this.parentNode.appendChild(this); })
+      .transition()
+        .duration(750)
+        .attr("transform", transform)
+        .each("end", function(d, i) {
+          d3.select(this).attr("class", i || swap[0] === swap[1] ? "line line--inactive" : "line");
+          if (i || swap[0] === swap[1]) {
+            if (swaps.length) nextTransition();
+            else p.classed("animation--playing", false);
+          }
+        });
+  })();
+}
+
+function transform(d) {
+  return "translate(" + x(d.index) + "," + height + ")rotate(" + a(d.value) + ")";
+}
+
+function shuffle(array) {
+  var swaps = [],
+      m = array.length,
+      t,
+      i;
+
+  while (m) {
+    i = Math.floor(Math.random() * m--);
+    t = array[m];
+    array[m] = array[i];
+    array[i] = t;
+    swaps.push([m, i]);
+  }
+
+  return swaps;
+}
+
+})()</script>
+
+<p>Each line represents a number. Small numbers lean left and large numbers lean right. (Note that you can shuffle an array of anything — not just numbers — but this visual encoding is useful for showing the order of elements. It is inspired by <a href="https://www.cs.princeton.edu/~rs/">Robert Sedgwick</a>’s sorting visualizations in <i>Algorithms in C</i>.)
+
+<p>The algorithm splits the array into two parts: the right side of the array (in black) is the shuffled section, while the left side of the array (in gray) contains elements remaining to be shuffled. At each step it picks a random element from the left and moves it to the right, thereby expanding the shuffled section by one. The original order on the left does not need to be preserved, so to make room for the new element in the shuffled section, the algorithm can simply swap the element into place. Eventually all elements are shuffled, and the algorithm terminates.
+
+<p>If Fisher–Yates is a good algorithm, what does a bad algorithm look like? Here’s one:
+
+<pre><code class="javascript">// DON’T DO THIS!
+function shuffle(array) {
+  return array.sort(function(a, b) {
+    return Math.random() - .5; // ಠ_ಠ
+  });
+}</code></pre>
+
+<p>This approach uses sorting to shuffle by specifying a random comparator function. A comparator defines the order of elements. It takes arguments <i>a</i> and <i>b</i> — two elements from the array to compare — and returns a value less than zero if <i>a</i> is less than <i>b</i>, a value greater than zero if <i>a</i> is greater than <i>b</i>, or zero if <i>a</i> and <i>b</i> are equal. The comparator is invoked repeatedly during sorting.
+
+<aside>If you don’t specify a comparator to array.sort, elements are ordered <a href="https://en.wikipedia.org/wiki/Lexicographical_order">lexicographically</a>.</aside>
+
+<p>Here the comparator returns a random number between -.5 and +.5. The assumption is that this defines a random order, so sorting will jumble the elements randomly and perform a good shuffle.
+
+<p>Unfortunately, this assumption is flawed. A random pairwise order (for any two elements) does not establish a random order for a set of elements. A comparator must obey <i>transitivity</i>: if <i>a</i> > <i>b</i> and <i>b</i> > <i>c</i>, then <i>a</i> > <i>c</i>. But the random comparator returns a random value, violating transitivity and causing the behavior of array.sort to be undefined! You might get lucky, or you might not.
+
+<p>How bad is it? We can try to answer this question by visualizing the output:
+
+<p id="random-comparator-shuffle" class="animation shuffle" style="-webkit-user-select:none;"><script>(function() {
+
+var n = 120;
+
+var margin = {top: 60, right: 60, bottom: 60, left: 60},
+    width = 960 - margin.left - margin.right,
+    height = 180 - margin.top - margin.bottom;
+
+var x = d3.scale.ordinal()
+    .domain(d3.range(n))
+    .rangePoints([0, width]);
+
+var a = d3.scale.linear()
+    .domain([0, n - 1])
+    .range([-45, 45]);
+
+var p = d3.select("#random-comparator-shuffle")
+    .on("click", click);
+
+var svg = p.append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var line = svg.append("g")
+  .selectAll("line")
+    .data(d3.range(n))
+  .enter().append("line")
+    .attr("class", "line line--inactive")
+    .attr("transform", transform)
+    .attr("y2", -height);
+
+p.append("button")
+    .text("▶ Play");
+
+beforeVisible(p.node(), click);
+
+function click() {
+  p
+      .classed("animation--playing", true);
+
+  line
+      .data(shuffle(d3.range(n)), function(d) { return d; })
+      .interrupt()
+    .transition()
+      .attr("transform", transform)
+      .each("end", function(d, i) { if (!i) p.classed("animation--playing", false); });
+}
+
+function transform(d, i) {
+  return "translate(" + x(i) + "," + height + ")rotate(" + a(d) + ")";
+}
+
+// DON’T DO THIS!
+function shuffle(array) {
+  return array.sort(function() {
+    return Math.random() - .5; // ಠ_ಠ
+  });
+}
+
+})()</script>
+
+<aside>Another reason this algorithm is bad is that sorting takes <i>O(n lg n)</i> time, making it significantly slower than Fisher–Yates which takes <i>O(n)</i>. But speed is less damning than bias.</aside>
+
+<p>This may look random, so you might be tempted to conclude that random comparator shuffle is adequate, and dismiss concerns of bias as pedantic. But looks can be misleading! There are many things that appear random to the human eye but are substantially non-random.
+
+<p>This deception demonstrates that visualization is not a magic wand. Showing a single run of the algorithm does not effectively assess the quality of its randomness. We must instead carefully design a visualization that addresses the specific question at hand: what is the algorithm’s bias?
+
+<p>To show bias, we must first define it. One definition is based on the probability that an array element at index <i>i</i> prior to shuffling will be at index <i>j</i> after shuffling. If the algorithm is unbiased, every element has equal probability of ending up at every index, and thus the probability for all <i>i</i> and <i>j</i> is the same: <i>1/n</i>, where <i>n</i> is the number of elements.
+

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html class="ocks-org do-not-copy">
+
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<meta charset="utf-8">
+<title>Random Traversal</title>
+<style>
+
+@import url(../styleb121.css?aea6f0a);
+
+.slide {
+  margin: 2em 0 2em 0;
+}
+
+.slide iframe {
+  background: #fff;
+  border: solid 1px #ddd;
+}
+
+.animation {
+  position: relative;
+  cursor: pointer;
+}
+
+.animation--playing button {
+  opacity: 0;
+}
+
+.animation button {
+  cursor: pointer;
+  position: absolute;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: solid 1px #ccc;
+  color: #333;
+  background: #fff;
+  bottom: 20px;
+  left: 20px;
+}
+
+.animation:not(.animation--playing) button {
+  transition: opacity 250ms linear;
+  transition-delay: 2s;
+}
+
+.animation:hover button {
+  border-color: #000;
+  color: #000;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2);
+}
+
+.animation button:focus {
+  outline: none;
+}
+
+.animation--playing button,
+.animation:active button {
+  box-shadow: inset 0 0 4px rgba(0,0,0,.2) !important;
+}
+
+</style>
+
+<header>
+</header>
+<h1>Random Traversal</h1>
+<script src="d3.min.js"></script>
+<script>
+
+function uniformRandomSampler(width, height, numSamplesMax) {
+  var numSamples = 0;
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    return [Math.random() * width, Math.random() * height];
+  };
+}
+
+function bestCandidateSampler(width, height, numCandidates, numSamplesMax) {
+  var numSamples = 0;
+
+  var quadtree = d3.geom.quadtree()
+      .extent([[0, 0], [width, height]])
+      ([[Math.random() * width, Math.random() * height]]);
+
+  return function() {
+    if (++numSamples > numSamplesMax) return;
+    var bestCandidate, bestDistance = 0;
+    for (var i = 0; i < numCandidates; ++i) {
+      var c = [Math.random() * width, Math.random() * height],
+          d = distance(quadtree.find(c[0], c[1]), c);
+      if (d > bestDistance) {
+        bestDistance = d;
+        bestCandidate = c;
+      }
+    }
+    quadtree.add(bestCandidate);
+    return bestCandidate;
+  };
+
+  function distance(a, b) {
+    var dx = a[0] - b[0],
+        dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+  }
+}
+
+// Based on http://www.jasondavies.com/poisson-disc/
+function poissonDiscSampler(width, height, radius) {
+  var k = 30, // maximum number of samples before rejection
+      radius2 = radius * radius,
+      R = 3 * radius2,
+      cellSize = radius * Math.SQRT1_2,
+      gridWidth = Math.ceil(width / cellSize),
+      gridHeight = Math.ceil(height / cellSize),
+      grid = new Array(gridWidth * gridHeight),
+      queue = [],
+      queueSize = 0,
+      sampleSize = 0;
+
+  return function() {
+    if (!sampleSize) return sample(Math.random() * width, Math.random() * height);
+
+    // Pick a random existing sample and remove it from the queue.
+    while (queueSize) {
+      var i = Math.random() * queueSize | 0,
+          s = queue[i];
+
+      // Make a new candidate between [radius, 2 * radius] from the existing sample.
+      for (var j = 0; j < k; ++j) {
+        var a = 2 * Math.PI * Math.random(),
+            r = Math.sqrt(Math.random() * R + radius2),
+            x = s[0] + r * Math.cos(a),
+            y = s[1] + r * Math.sin(a);
+
+        // Reject candidates that are outside the allowed extent,
+        // or closer than 2 * radius to any existing sample.
+        if (0 <= x && x < width && 0 <= y && y < height && far(x, y)) return sample(x, y);
+      }
+
+      queue[i] = queue[--queueSize];
+      queue.length = queueSize;
+    }
+  };
+
+  function far(x, y) {
+    var i = x / cellSize | 0,
+        j = y / cellSize | 0,
+        i0 = Math.max(i - 2, 0),
+        j0 = Math.max(j - 2, 0),
+        i1 = Math.min(i + 3, gridWidth),
+        j1 = Math.min(j + 3, gridHeight);
+
+    for (j = j0; j < j1; ++j) {
+      var o = j * gridWidth;
+      for (i = i0; i < i1; ++i) {
+        if (s = grid[o + i]) {
+          var s,
+              dx = s[0] - x,
+              dy = s[1] - y;
+          if (dx * dx + dy * dy < radius2) return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function sample(x, y) {
+    var s = [x, y];
+    queue.push(s);
+    grid[gridWidth * (y / cellSize | 0) + (x / cellSize | 0)] = s;
+    ++sampleSize;
+    ++queueSize;
+    return s;
+  }
+}
+
+function minHeap(compare) {
+  var heap = {},
+      array = [],
+      size = 0;
+
+  heap.empty = function() {
+    return !size;
+  };
+
+  heap.push = function(value) {
+    up(array[size] = value, size++);
+    return size;
+  };
+
+  heap.pop = function() {
+    if (size <= 0) return;
+    var removed = array[0], value;
+    if (--size > 0) value = array[size], down(array[0] = value, 0);
+    return removed;
+  };
+
+  function up(value, i) {
+    while (i > 0) {
+      var j = ((i + 1) >> 1) - 1,
+          parent = array[j];
+      if (compare(value, parent) >= 0) break;
+      array[i] = parent;
+      array[i = j] = value;
+    }
+  }
+
+  function down(value, i) {
+    while (true) {
+      var r = (i + 1) << 1,
+          l = r - 1,
+          j = i,
+          child = array[j];
+      if (l < size && compare(array[l], child) < 0) child = array[j = l];
+      if (r < size && compare(array[r], child) < 0) child = array[j = r];
+      if (j === i) break;
+      array[i] = child;
+      array[i = j] = value;
+    }
+  }
+
+  return heap;
+}
+
+// queue
+!function(){function n(n){function e(){for(;i=a<c.length&&n>p;){var u=a++,e=c[u],o=t.call(e,1);o.push(l(u)),++p,e[0].apply(null,o)}}function l(n){return function(u,t){--p,null==s&&(null!=u?(s=u,a=d=0/0,o()):(c[n]=t,--d?i||e():o()))}}function o(){null!=s?m(s):f?m(s,c):m.apply(null,[s].concat(c))}var r,i,f,c=[],a=0,p=0,d=0,s=null,m=u;return n||(n=1/0),r={defer:function(){return s||(c.push(arguments),++d,e()),r},await:function(n){return m=n,f=!1,d||o(),r},awaitAll:function(n){return m=n,f=!0,d||o(),r}}}function u(){}var t=[].slice;n.version="1.0.7","function"==typeof define&&define.amd?define(function(){return n}):"object"==typeof module&&module.exports?module.exports=n:this.queue=n}();
+
+// cubehelix
+!function(){function t(t){return function(e,i){e=d3.hsl(e),i=d3.hsl(i);var r=(e.h+120)*a,h=(i.h+120)*a-r,s=e.s,l=i.s-s,o=e.l,u=i.l-o;return isNaN(l)&&(l=0,s=isNaN(s)?i.s:s),isNaN(h)&&(h=0,r=isNaN(r)?i.h:r),function(a){var e=r+h*a,i=Math.pow(o+u*a,t),c=(s+l*a)*i*(1-i);return"#"+n(i+c*(-.14861*Math.cos(e)+1.78277*Math.sin(e)))+n(i+c*(-.29227*Math.cos(e)-.90649*Math.sin(e)))+n(i+c*1.97294*Math.cos(e))}}}function n(t){var n=(t=0>=t?0:t>=1?255:0|255*t).toString(16);return 16>t?"0"+n:n}var a=Math.PI/180;d3.scale.cubehelix=function(){return d3.scale.linear().range([d3.hsl(300,.5,0),d3.hsl(-240,.5,1)]).interpolate(d3.interpolateCubehelix)},d3.interpolateCubehelix=t(1),d3.interpolateCubehelix.gamma=t}();
+
+(function() {
+  var color = d3.scale.cubehelix()
+      .domain([0, 180, 360])
+      .range([
+        d3.hsl(-100, 0.75, 0.35),
+        d3.hsl(  80, 1.50, 0.80),
+        d3.hsl( 260, 0.75, 0.35)
+      ]);
+
+  floodColor = function(distance) {
+    return color(distance % 360);
+  };
+})();
+
+(function() {
+  var count = 0,
+      overshoot = 300;
+
+  function whenBoundsVisible(computeBounds, callback) {
+    var id = ".visible-" + ++count,
+        self = d3.select(window),
+        bounds;
+
+    if (document.readyState === "loading") self.on("load" + id, loaded);
+    else loaded();
+
+    function loaded() {
+      self
+          .on("resize" + id, resized)
+          .on("scroll" + id, scrolled)
+          .each(resized);
+    }
+
+    function resized() {
+      bounds = computeBounds();
+      if (bounds[1] < bounds[0]) bounds.reverse();
+      scrolled();
+    }
+
+    function scrolled() {
+      if (bounds[0] <= pageYOffset && pageYOffset <= bounds[1]) {
+        callback(null);
+        self.on(id, null);
+      }
+    }
+  }
+
+  beforeVisible = function(element, callback) {
+    return whenBoundsVisible(function() {
+      var rect = element.getBoundingClientRect();
+      return [
+        rect.top + pageYOffset - innerHeight - overshoot,
+        rect.bottom + pageYOffset + overshoot
+      ];
+    }, callback);
+  };
+
+  whenFullyVisible = function(element, callback) {
+    return whenBoundsVisible(function() {
+      var rect = element.getBoundingClientRect();
+      return [
+        rect.bottom + pageYOffset - innerHeight,
+        rect.top + pageYOffset
+      ];
+    }, callback);
+  };
+})();
+
+</script>
+
+
+
+<style>
+
+.maze canvas {
+  background: #000;
+}
+
+</style>
+<p id="random-traversal" class="animation maze"><script>(function() {
+
+var width = 960,
+    height = 500;
+
+var N = 1 << 0,
+    S = 1 << 1,
+    W = 1 << 2,
+    E = 1 << 3;
+
+var cellSize = 6,
+    cellSpacing = 6,
+    cellWidth = Math.floor((width - cellSpacing) / (cellSize + cellSpacing)),
+    cellHeight = Math.floor((height - cellSpacing) / (cellSize + cellSpacing)),
+    cells,
+    frontier,
+    active = 0;
+
+var p = d3.select("#random-traversal")
+    .on("click", click);
+
+var canvas = p.append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+var context = canvas.node().getContext("2d");
+
+context.translate(
+  Math.round((width - cellWidth * cellSize - (cellWidth + 1) * cellSpacing) / 2),
+  Math.round((height - cellHeight * cellSize - (cellHeight + 1) * cellSpacing) / 2)
+);
+
+function click() {
+  var id = ++active;
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "white";
+  p.classed("animation--playing", true);
+
+  cells = new Array(cellWidth * cellHeight); // each cell’s edge bits
+  frontier = [];
+
+  // Add a random cell and two initial edges.
+  var start = (cellHeight - 1) * cellWidth;
+  cells[start] = 0;
+  fillCell(start);
+  frontier.push({index: start, direction: N});
+  frontier.push({index: start, direction: E});
+
+  // Explore the frontier until the tree spans the graph.
+  d3.timer(function() {
+    if (id !== active) return true;
+    var done, k = 0;
+    while (++k < 10 && !(done = exploreFrontier()));
+    return done && p.classed("animation--playing", false);
+  });
+}
+
+function exploreFrontier() {
+  if ((edge = popRandom(frontier)) == null) return true;
+
+  var edge,
+      i0 = edge.index,
+      d0 = edge.direction,
+      i1 = i0 + (d0 === N ? -cellWidth : d0 === S ? cellWidth : d0 === W ? -1 : +1),
+      x0 = i0 % cellWidth,
+      y0 = i0 / cellWidth | 0,
+      x1,
+      y1,
+      d1,
+      open = cells[i1] == null; // opposite not yet part of the maze
+
+  context.fillStyle = open ? "white" : "black";
+  if (d0 === N) fillSouth(i1), x1 = x0, y1 = y0 - 1, d1 = S;
+  else if (d0 === S) fillSouth(i0), x1 = x0, y1 = y0 + 1, d1 = N;
+  else if (d0 === W) fillEast(i1), x1 = x0 - 1, y1 = y0, d1 = E;
+  else fillEast(i0), x1 = x0 + 1, y1 = y0, d1 = W;
+
+  if (open) {
+    fillCell(i1);
+    cells[i0] |= d0, cells[i1] |= d1;
+    context.fillStyle = "red";
+    if (y1 > 0 && cells[i1 - cellWidth] == null) fillSouth(i1 - cellWidth), frontier.push({index: i1, direction: N});
+    if (y1 < cellHeight - 1 && cells[i1 + cellWidth] == null) fillSouth(i1), frontier.push({index: i1, direction: S});
+    if (x1 > 0 && cells[i1 - 1] == null) fillEast(i1 - 1), frontier.push({index: i1, direction: W});
+    if (x1 < cellWidth - 1 && cells[i1 + 1] == null) fillEast(i1), frontier.push({index: i1, direction: E});
+  }
+}
+
+function fillCell(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, j * cellSize + (j + 1) * cellSpacing, cellSize, cellSize);
+}
+
+function fillEast(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect((i + 1) * (cellSize + cellSpacing), j * cellSize + (j + 1) * cellSpacing, cellSpacing, cellSize);
+}
+
+function fillSouth(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, (j + 1) * (cellSize + cellSpacing), cellSize, cellSpacing);
+}
+
+function popRandom(array) {
+  if (!array.length) return;
+  var n = array.length, i = Math.random() * n | 0, t;
+  t = array[i], array[i] = array[n - 1], array[n - 1] = t;
+  return array.pop();
+}
+
+})()</script>
+
+<aside><a href="http://bl.ocks.org/mbostock/70a28267db0354261476">Random traversal</a></aside>
+
+<p>The random traversal algorithm initializes the first cell of the maze in the bottom-left corner. The algorithm then tracks all possible ways by which the maze could be extended (shown in red). At each step, one of these possible extensions is picked randomly, and the maze is extended as long as this does not reconnect it with another part of the maze.
+
+<p>Like Bridon’s Poisson-disc sampling algorithm, random traversal maintains a frontier and randomly selects from that frontier to expand. Both algorithms thus appear to grow organically, like a fungus.
+
+<p>Randomized depth-first traversal follows a very different pattern:
+<h1 id="randomdfs">Random DFS</h1>
+<p id="randomized-depth-first-traversal" class="animation maze"><script>(function() {
+
+var width = 960,
+    height = 500;
+
+var N = 1 << 0,
+    S = 1 << 1,
+    W = 1 << 2,
+    E = 1 << 3;
+
+var cellSize = 6,
+    cellSpacing = 6,
+    cellWidth = Math.floor((width - cellSpacing) / (cellSize + cellSpacing)),
+    cellHeight = Math.floor((height - cellSpacing) / (cellSize + cellSpacing)),
+    cells,
+    frontier,
+    active = 0;
+
+var p = d3.select("#randomized-depth-first-traversal")
+    .on("click", click);
+
+var canvas = p.append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+var context = canvas.node().getContext("2d");
+
+context.translate(
+  Math.round((width - cellWidth * cellSize - (cellWidth + 1) * cellSpacing) / 2),
+  Math.round((height - cellHeight * cellSize - (cellHeight + 1) * cellSpacing) / 2)
+);
+
+function click() {
+  var id = ++active;
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "white";
+  p.classed("animation--playing", true);
+
+  cells = new Array(cellWidth * cellHeight); // each cell’s edge bits
+  frontier = [];
+
+  // Add a random cell and two initial edges.
+  var start = (cellHeight - 1) * cellWidth;
+  cells[start] = 0;
+  fillCell(start);
+  frontier.push({index: start, direction: N});
+  frontier.push({index: start, direction: E});
+
+  // Explore the frontier until the tree spans the graph.
+  d3.timer(function() {
+    if (id !== active) return true;
+    var done, k = 0;
+    while (++k < 10 && !(done = exploreFrontier()));
+    return done && p.classed("animation--playing", false);
+  });
+}
+
+function exploreFrontier() {
+  if ((edge = frontier.pop()) == null) return true;
+
+  var edge,
+      i0 = edge.index,
+      d0 = edge.direction,
+      i1 = i0 + (d0 === N ? -cellWidth : d0 === S ? cellWidth : d0 === W ? -1 : +1),
+      x0 = i0 % cellWidth,
+      y0 = i0 / cellWidth | 0,
+      x1,
+      y1,
+      d1,
+      open = cells[i1] == null; // opposite not yet part of the maze
+
+  context.fillStyle = open ? "white" : "black";
+  if (d0 === N) fillSouth(i1), x1 = x0, y1 = y0 - 1, d1 = S;
+  else if (d0 === S) fillSouth(i0), x1 = x0, y1 = y0 + 1, d1 = N;
+  else if (d0 === W) fillEast(i1), x1 = x0 - 1, y1 = y0, d1 = E;
+  else fillEast(i0), x1 = x0 + 1, y1 = y0, d1 = W;
+
+  if (open) {
+    fillCell(i1);
+    cells[i0] |= d0, cells[i1] |= d1;
+    context.fillStyle = "red";
+
+    var m = 0;
+    if (y1 > 0 && cells[i1 - cellWidth] == null) fillSouth(i1 - cellWidth), frontier.push({index: i1, direction: N}), ++m;
+    if (y1 < cellHeight - 1 && cells[i1 + cellWidth] == null) fillSouth(i1), frontier.push({index: i1, direction: S}), ++m;
+    if (x1 > 0 && cells[i1 - 1] == null) fillEast(i1 - 1), frontier.push({index: i1, direction: W}), ++m;
+    if (x1 < cellWidth - 1 && cells[i1 + 1] == null) fillEast(i1), frontier.push({index: i1, direction: E}), ++m;
+    shuffle(frontier, frontier.length - m, frontier.length);
+  }
+}
+
+function fillCell(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, j * cellSize + (j + 1) * cellSpacing, cellSize, cellSize);
+}
+
+function fillEast(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect((i + 1) * (cellSize + cellSpacing), j * cellSize + (j + 1) * cellSpacing, cellSpacing, cellSize);
+}
+
+function fillSouth(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, (j + 1) * (cellSize + cellSpacing), cellSize, cellSpacing);
+}
+
+function shuffle(array, i0, i1) {
+  var m = i1 - i0, t, i, j;
+  while (m) {
+    i = Math.random() * m-- | 0;
+    t = array[m + i0], array[m + i0] = array[i + i0], array[i + i0] = t;
+  }
+  return array;
+}
+
+})()</script>
+
+<aside><a href="http://bl.ocks.org/mbostock/1ef3b1fb9eb35ca8ffff">Randomized depth-first traversal</a></aside>
+
+<p>Rather than picking a new random passage each time, this algorithm always extends the deepest passage — the one with the longest path back to the root — in a random direction. Thus, randomized depth-first traversal only branches when the current path dead-ends into an earlier part of the maze. To continue, it backtracks until it can start a new branch. This snake-like exploration leads to mazes with significantly fewer branches and much longer, winding passages.
+
+<p>Prim’s algorithm constructs a <a href="https://en.wikipedia.org/wiki/Minimum_spanning_tree">minimum spanning tree</a>, a spanning tree of a graph with weighted edges with the lowest total weight. This algorithm can be used to construct a random spanning tree by initializing edge weights randomly:
+
+<p id="randomized-prims" class="animation maze"><script>(function() {
+
+var width = 960,
+    height = 500;
+
+var N = 1 << 0,
+    S = 1 << 1,
+    W = 1 << 2,
+    E = 1 << 3;
+
+var cellSize = 6,
+    cellSpacing = 6,
+    cellWidth = Math.floor((width - cellSpacing) / (cellSize + cellSpacing)),
+    cellHeight = Math.floor((height - cellSpacing) / (cellSize + cellSpacing)),
+    cells,
+    frontier,
+    active = 0;
+
+var p = d3.select("#randomized-prims")
+    .on("click", click);
+
+var canvas = p.append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+var context = canvas.node().getContext("2d");
+
+context.translate(
+  Math.round((width - cellWidth * cellSize - (cellWidth + 1) * cellSpacing) / 2),
+  Math.round((height - cellHeight * cellSize - (cellHeight + 1) * cellSpacing) / 2)
+);
+
+function click() {
+  var id = ++active;
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "white";
+  p.classed("animation--playing", true);
+
+  cells = new Array(cellWidth * cellHeight); // each cell’s edge bits
+  frontier = minHeap(function(a, b) { return a.weight - b.weight; });
+
+  // Add a random cell and two initial edges.
+  var start = (cellHeight - 1) * cellWidth;
+  cells[start] = 0;
+  fillCell(start);
+  frontier.push({index: start, direction: N, weight: Math.random()});
+  frontier.push({index: start, direction: E, weight: Math.random()});
+
+  // Explore the frontier until the tree spans the graph.
+  d3.timer(function() {
+    if (id !== active) return true;
+    var done, k = 0;
+    while (++k < 10 && !(done = exploreFrontier()));
+    return done && p.classed("animation--playing", false);
+  });
+}
+
+function exploreFrontier() {
+  if ((edge = frontier.pop()) == null) return true;
+
+  var edge,
+      i0 = edge.index,
+      d0 = edge.direction,
+      i1 = i0 + (d0 === N ? -cellWidth : d0 === S ? cellWidth : d0 === W ? -1 : +1),
+      x0 = i0 % cellWidth,
+      y0 = i0 / cellWidth | 0,
+      x1,
+      y1,
+      d1,
+      open = cells[i1] == null; // opposite not yet part of the maze
+
+  context.fillStyle = open ? "white" : "black";
+  if (d0 === N) fillSouth(i1), x1 = x0, y1 = y0 - 1, d1 = S;
+  else if (d0 === S) fillSouth(i0), x1 = x0, y1 = y0 + 1, d1 = N;
+  else if (d0 === W) fillEast(i1), x1 = x0 - 1, y1 = y0, d1 = E;
+  else fillEast(i0), x1 = x0 + 1, y1 = y0, d1 = W;
+
+  if (open) {
+    fillCell(i1);
+    cells[i0] |= d0, cells[i1] |= d1;
+    context.fillStyle = "red";
+    if (y1 > 0 && cells[i1 - cellWidth] == null) fillSouth(i1 - cellWidth), frontier.push({index: i1, direction: N, weight: Math.random()});
+    if (y1 < cellHeight - 1 && cells[i1 + cellWidth] == null) fillSouth(i1), frontier.push({index: i1, direction: S, weight: Math.random()});
+    if (x1 > 0 && cells[i1 - 1] == null) fillEast(i1 - 1), frontier.push({index: i1, direction: W, weight: Math.random()});
+    if (x1 < cellWidth - 1 && cells[i1 + 1] == null) fillEast(i1), frontier.push({index: i1, direction: E, weight: Math.random()});
+  }
+}
+
+function fillCell(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, j * cellSize + (j + 1) * cellSpacing, cellSize, cellSize);
+}
+
+function fillEast(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect((i + 1) * (cellSize + cellSpacing), j * cellSize + (j + 1) * cellSpacing, cellSpacing, cellSize);
+}
+
+function fillSouth(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, (j + 1) * (cellSize + cellSpacing), cellSize, cellSpacing);
+}
+
+})()</script>
+
+<aside><a href="http://bl.ocks.org/mbostock/11159599">Randomized Prim’s</a></aside>
+
+<p>At each step, Prim’s algorithm extends the maze using the lowest-weighted edge (potential direction) connected to the existing maze. If this edge would form a loop, it is discarded and the next-lowest-weighted edge is considered.
+
+<p>Prim’s algorithm is commonly implemented using a <a href="https://en.wikipedia.org/wiki/Heap_(data_structure)">heap</a>, which is an efficient data structure for prioritizing elements. When a new cell is added to the maze, connected edges (shown in red) are added to the heap. Despite edges being added in arbitrary order, the heap allows the lowest-weighted edge to be quickly removed.
+
+<p>Lastly, a most unusual specimen:
+
+<p id="wilsons" class="animation maze"><script>(function() {
+
+var width = 960,
+    height = 500;
+
+var N = 1 << 0,
+    S = 1 << 1,
+    W = 1 << 2,
+    E = 1 << 3;
+
+var cellSize = 6,
+    cellSpacing = 6,
+    cellWidth = Math.floor((width - cellSpacing) / (cellSize + cellSpacing)),
+    cellHeight = Math.floor((height - cellSpacing) / (cellSize + cellSpacing)),
+    cells,
+    remaining,
+    previous,
+    i0,
+    x0,
+    y0,
+    active = 0;
+
+var p = d3.select("#wilsons")
+    .on("click", click);
+
+var canvas = p.append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+p.append("button")
+    .text("▶ Play");
+
+whenFullyVisible(p.node(), click);
+
+var context = canvas.node().getContext("2d");
+
+context.translate(
+  Math.round((width - cellWidth * cellSize - (cellWidth + 1) * cellSpacing) / 2),
+  Math.round((height - cellHeight * cellSize - (cellHeight + 1) * cellSpacing) / 2)
+);
+
+function click() {
+  var id = ++active;
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "white";
+  p.classed("animation--playing", true);
+
+  cells = new Array(cellWidth * cellHeight); // each cell’s edge bits
+  remaining = new Array(cellWidth * cellHeight); // cell indexes to visit
+  previous = new Array(cellWidth * cellHeight); // current random walk path
+  i0 = undefined, x0 = undefined, y0 = undefined; // end of current random walk
+
+  for (var j = 0, q = 0; j < cellHeight; ++j) {
+    for (var i = cellWidth - 1; i >= 0; --i, ++q) {
+      remaining[q] = j * cellWidth + i;
+    }
+  }
+
+  // Add a random cell and two initial edges.
+  var start = remaining.pop();
+  cells[start] = 0;
+  fillCell(start);
+
+  // Explore the frontier until the tree spans the graph.
+  context.fillStyle = "red";
+  d3.timer(function() {
+    if (id !== active) return true;
+    var done, k = 0;
+    while (++k < 10 && !(done = loopErasedRandomWalk()));
+    return done && p.classed("animation--playing", false);
+  });
+}
+
+function loopErasedRandomWalk() {
+  var i1;
+
+  // Pick a location that’s not yet in the maze (if any).
+  if (i0 == null) {
+    do if ((i0 = remaining.pop()) == null) return true;
+    while (cells[i0] >= 0);
+    previous[i0] = i0;
+    fillCell(i0);
+    x0 = i0 % cellWidth;
+    y0 = i0 / cellWidth | 0;
+    return;
+  }
+
+  // Perform a random walk starting at this location,
+  // by picking a legal random direction.
+  while (true) {
+    i1 = Math.random() * 4 | 0;
+    if (i1 === 0) { if (y0 <= 0) continue; --y0, i1 = i0 - cellWidth; }
+    else if (i1 === 1) { if (y0 >= cellHeight - 1) continue; ++y0, i1 = i0 + cellWidth; }
+    else if (i1 === 2) { if (x0 <= 0) continue; --x0, i1 = i0 - 1; }
+    else { if (x0 >= cellWidth - 1) continue; ++x0, i1 = i0 + 1; }
+    break;
+  }
+
+  // If this new cell was visited previously during this walk,
+  // erase the loop, rewinding the path to its earlier state.
+  if (previous[i1] >= 0) eraseWalk(i0, i1);
+
+  // Otherwise, just add it to the walk.
+  else {
+    previous[i1] = i0;
+    fillCell(i1);
+    if (i1 === i0 - 1) fillEast(i1);
+    else if (i1 === i0 + 1) fillEast(i0);
+    else if (i1 === i0 - cellWidth) fillSouth(i1);
+    else fillSouth(i0);
+  }
+
+  // If this cell is part of the maze, we’re done walking.
+  if (cells[i1] >= 0) {
+
+    // Add the random walk to the maze by backtracking to the starting cell.
+    // Also erase this walk’s history to not interfere with subsequent walks.
+    context.save();
+    context.fillStyle = "#fff";
+    fillCell(i1);
+    while ((i0 = previous[i1]) !== i1) {
+      fillCell(i0);
+      if (i1 === i0 + 1) cells[i0] |= E, cells[i1] |= W, fillEast(i0);
+      else if (i1 === i0 - 1) cells[i0] |= W, cells[i1] |= E, fillEast(i1);
+      else if (i1 === i0 + cellWidth) cells[i0] |= S, cells[i1] |= N, fillSouth(i0);
+      else cells[i0] |= N, cells[i1] |= S, fillSouth(i1);
+      previous[i1] = NaN;
+      i1 = i0;
+    }
+    context.restore();
+
+    previous[i1] = NaN;
+    i0 = null;
+  } else {
+    i0 = i1;
+  }
+}
+
+function eraseWalk(i0, i2) {
+  var i1;
+  context.save();
+  context.globalCompositeOperation = "destination-out";
+  do {
+    i1 = previous[i0];
+    if (i1 === i0 - 1) fillEast(i1);
+    else if (i1 === i0 + 1) fillEast(i0);
+    else if (i1 === i0 - cellWidth) fillSouth(i1);
+    else fillSouth(i0);
+    fillCell(i0);
+    previous[i0] = NaN;
+    i0 = i1;
+  } while (i1 !== i2);
+  context.restore();
+}
+
+function fillCell(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, j * cellSize + (j + 1) * cellSpacing, cellSize, cellSize);
+}
+
+function fillEast(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect((i + 1) * (cellSize + cellSpacing), j * cellSize + (j + 1) * cellSpacing, cellSpacing, cellSize);
+}
+
+function fillSouth(index) {
+  var i = index % cellWidth, j = index / cellWidth | 0;
+  context.fillRect(i * cellSize + (i + 1) * cellSpacing, (j + 1) * (cellSize + cellSpacing), cellSize, cellSpacing);
+}
+
+})()</script>
+
+<aside><a href="http://bl.ocks.org/mbostock/11357811">Wilson’s</a></aside>
+
+<p>Wilson’s algorithm uses <a href="https://en.wikipedia.org/wiki/Loop-erased_random_walk">loop-erased random walks</a> to generate a uniform spanning tree — an unbiased sample of all possible spanning trees. The other maze generation algorithms we have seen lack this beautiful mathematical property.
+
+<p>The algorithm initializes the maze with an arbitrary starting cell. Then, a new cell is added to the maze, initiating a random walk (shown in red). The random walk continues until it reconnects with the existing maze (shown in white). However, if the random walk intersects itself, the resulting loop is erased before the random walk continues.
+
+<p>Initially, the algorithm can be frustratingly slow to watch, as early random walks are unlikely to reconnect with the small existing maze. As the maze grows, random walks become more likely to collide with the maze and the algorithm accelerates dramatically.
+
