@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Insertion Sort Visualization</title>
+	<script src="https://cdn.jsdelivr.net/npm/p5@1.0.0/lib/p5.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.0.0/lib/addons/p5.sound.min.js"></script>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+  <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+<style type="text/css">
+	#container{
+      border-color: black;
+      border-style: solid;
+      border-width: 5px;
+      padding: 0px 0px;
+    }
+</style>
+</head>
+<body>
+  <div class="container mt-3">
+    <h1>Insertion sort</h1>
+  </div>
+  <br>
+  <div id="container" class="container content-center"></div>
+  <br>
+  <div class="container text-center">
+    <button class="btn btn-primary" onclick="window.location.reload();">Play again</button>
+  </div>
+  <br>
+  <br>
+  <div class="container">
+  	<p>Insertion sort iterates, consuming one input element each repetition, and growing a sorted output list. At each iteration, insertion sort removes one element from the input data, finds the location it belongs within the sorted list, and inserts it there. It repeats until no input elements remain.
+	</p>
+	<p>Sorting is typically done in-place, by iterating up the array, growing the sorted list behind it. At each array-position, it checks the value there against the largest value in the sorted list (which happens to be next to it, in the previous array-position checked). If larger, it leaves the element in place and moves to the next. If smaller, it finds the correct position within the sorted list, shifts all the larger values up to make a space, and inserts into that correct position.
+	</p>
+	<p>The best case input is an array that is already sorted. In this case insertion sort has a linear running time (i.e., O(<i>n</i>)). During each iteration, the first remaining element of the input is only compared with the right-most element of the sorted subsection of the array.
+	</p>
+	<p>The simplest worst case input is an array sorted in reverse order. The set of all worst case inputs consists of all arrays where each element is the smallest or second-smallest of the elements before it. In these cases every iteration of the inner loop will scan and shift the entire sorted subsection of the array before inserting the next element. This gives insertion sort a quadratic running time (i.e., O(<i>n</i><sup>2</sup>)).
+	</p>
+	<p>The average case is also quadratic, which makes insertion sort impractical for sorting large arrays. However, insertion sort is one of the fastest algorithms for sorting very small arrays, even faster than <a href="/wiki/Quicksort" title="Quicksort">quicksort</a>; indeed, good <a href="/wiki/Quicksort" title="Quicksort">quicksort</a> implementations use insertion sort for arrays smaller than a certain threshold, also when arising as subproblems; the exact threshold must be determined experimentally and depends on the machine, but is commonly around ten.
+	</p>
+	<br>
+	<h4>Algorithm:</h4>
+	<div class="bg-secondary">
+		<pre>i ← 1
+<b>while</b> i &lt; length(A)
+    j ← i
+    <b>while</b> j &gt; 0 <b>and</b> A[j-1] &gt; A[j]
+        <b>swap</b> A[j] and A[j-1]
+        j ← j - 1
+    <b>end while</b>
+    i ← i + 1
+<b>end while</b>
+</pre>
+	</div>
+  </div>
+</body>
+<script type="text/javascript">
+	let values = [];
+  let w = 10;
+
+  let states = [];
+
+  function setup() {
+    var canvasDiv = document.getElementById('container');
+    var div_width = canvasDiv.offsetWidth;
+    let cnv = createCanvas(div_width-10, 300);
+    cnv.parent('container')
+    values = new Array(floor(width / w));
+    for (let i = 0; i < values.length; i++) {
+      values[i] = random(height);
+    }
+
+  }
+
+let i=0;
+  function draw() {
+    background(0);
+    let length = values.length;
+    if(i<length) {
+        let key = values[i];
+        let j = i - 1;
+        while (j >= 0 && values[j] > key) {
+            values[j + 1] = values[j];
+            j = j - 1;
+        	for (let j = 0; j < values.length; j++) {
+     			stroke(255);
+      			rect(j * w, height - values[j], w, values[j]);
+    		}
+        }
+        values[j + 1] = key;
+
+    }
+    else{
+    	console.log('Finished');
+    	noLoop();
+    }
+    i++;
+    swap();
+    for (let j = 0; j < values.length; j++) {
+     	stroke(255);
+      rect(j * w, height - values[j], w, values[j]);
+    }
+  }
+  async function swap() {
+    await sleep(10000);
+
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+</script>
+</html>
