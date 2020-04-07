@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>QuickSort Visualization
+  </title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.0.0/lib/p5.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.0.0/lib/addons/p5.sound.min.js"></script>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+  <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #FFF
+    }
+
+    canvas {
+      display: block;
+
+    }
+
+    #container{
+      border-color: black;
+      border-style: solid;
+      border-width: 5px;
+      padding: 0px 0px;
+    }
+  </style>  
+</head>
+
+<body>
+  <div class="container mt-3">
+    <h1>Quick sort</h1>
+  </div>
+  <br>
+  <div id="container" class="container content-center"></div>
+  <br>
+  <div class="container text-center">
+    <button class="btn btn-primary" onclick="window.location.reload();">Play again</button>
+  </div>
+  <br>
+  <br>
+  <div class="container">
+    <p><b>Quicksort</b> (sometimes called <b>partition-exchange sort</b>) is an <a href="/wiki/Algorithm_efficiency" class="mw-redirect" title="Algorithm efficiency">efficient</a> <a href="/wiki/Sorting_algorithm" title="Sorting algorithm">sorting algorithm</a>. Developed by British computer scientist <a href="/wiki/Tony_Hoare" title="Tony Hoare">Tony Hoare</a> in 1959<sup id="cite_ref-1" class="reference"><a href="#cite_note-1">[1]</a></sup> and published in 1961,<sup id="cite_ref-alg64_2-0" class="reference"><a href="#cite_note-alg64-2">[2]</a></sup> it is still a commonly used algorithm for sorting. When implemented well, it can be about two or three times faster than its main competitors, <a href="/wiki/Merge_sort" title="Merge sort">merge sort</a> and <a href="/wiki/Heapsort" title="Heapsort">heapsort</a>.
+    </p>
+    <p>Quicksort is a <a href="/wiki/Divide-and-conquer_algorithm" title="Divide-and-conquer algorithm">divide-and-conquer algorithm</a>. It works by selecting a 'pivot' element from the array and partitioning the other elements into two sub-arrays, according to whether they are less than or greater than the pivot. The sub-arrays are then sorted <a href="/wiki/Recursion_(computer_science)" title="Recursion (computer science)">recursively</a>. This can be done <a href="/wiki/In-place_algorithm" title="In-place algorithm">in-place</a>, requiring small additional amounts of <a href="/wiki/Main_memory" class="mw-redirect" title="Main memory">memory</a> to perform the sorting.
+    </p>
+    <p>Quicksort is a <a href="/wiki/Comparison_sort" title="Comparison sort">comparison sort</a>, meaning that it can sort items of any type for which a "less-than" relation (formally, a <a href="/wiki/Total_order" title="Total order">total order</a>) is defined. Efficient implementations of Quicksort are not a <a href="/wiki/Stable_sort" class="mw-redirect" title="Stable sort">stable sort</a>, meaning that the relative order of equal sort items is not preserved. 
+    </p>
+    <p><a href="/wiki/Analysis_of_algorithms" title="Analysis of algorithms">Mathematical analysis</a> of quicksort shows that, <a href="/wiki/Best,_worst_and_average_case" title="Best, worst and average case">on average</a>, the algorithm takes <a href="/wiki/Big_O_notation" title="Big O notation">O</a>(<i>n</i>&nbsp;log&nbsp;<i>n</i>) comparisons to sort <i>n</i> items. In the <a href="/wiki/Best,_worst_and_average_case" title="Best, worst and average case">worst case</a>, it makes O(<i>n</i><sup>2</sup>) comparisons, though this behavior is rare.
+    </p>
+    <br>
+    <h4>Algorithm:</h4>
+    <div class="bg-secondary">
+      <pre><b>algorithm</b> quicksort(A, lo, hi) <b>is</b>
+          <b>if</b> lo &lt; hi <b>then</b>
+              p&nbsp;:= partition(A, lo, hi)
+              quicksort(A, lo, p - 1)
+              quicksort(A, p + 1, hi)
+
+<b>algorithm</b> partition(A, lo, hi) <b>is</b>
+  pivot&nbsp;:= A[hi]
+  i&nbsp;:= lo
+  <b>for</b> j&nbsp;:= lo <b>to</b> hi <b>do</b>
+      <b>if</b> A[j] &lt; pivot <b>then</b>
+          swap A[i] with A[j]
+          i&nbsp;:= i + 1
+  swap A[i] with A[hi]
+  <b>return</b> i
+      </pre>
+    </div>
+  </div>
+</body>
+<div>
+<script type="text/javascript">
+  let values = [];
+  let w = 10;
+
+  let states = [];
+
+  function setup() {
+    var canvasDiv = document.getElementById('container');
+    var div_width = canvasDiv.offsetWidth;
+    let cnv = createCanvas(div_width-10, 300);
+    cnv.parent('container')
+    values = new Array(floor(width / w));
+    for (let i = 0; i < values.length; i++) {
+      values[i] = random(height);
+      states[i] = -1;
+    }
+    quickSort(values, 0, values.length - 1);
+  }
+
+  async function quickSort(arr, start, end) {
+    if (start >= end) {
+      return;
+    }
+    let index = await partition(arr, start, end);
+    states[index] = -1;
+
+    await Promise.all([
+      quickSort(arr, start, index - 1),
+      quickSort(arr, index + 1, end)
+    ]);
+  }
+
+  async function partition(arr, start, end) {
+    for (let i = start; i < end; i++) {
+      states[i] = 1;
+    }
+
+    let pivotValue = arr[end];
+    let pivotIndex = start;
+    states[pivotIndex] = 0;
+    for (let i = start; i < end; i++) {
+      if (arr[i] < pivotValue) {
+        await swap(arr, i, pivotIndex);
+        states[pivotIndex] = -1;
+        pivotIndex++;
+        states[pivotIndex] = 0;
+      }
+    }
+    await swap(arr, pivotIndex, end);
+
+    for (let i = start; i < end; i++) {
+      if (i != pivotIndex) {
+        states[i] = -1;
+      }
+    }
+
+    return pivotIndex;
+  }
+
+  function draw() {
+    background(0);
+
+    for (let i = 0; i < values.length; i++) {
+      noStroke();
+      if (states[i] == 0) {
+        fill('#E0777D');
+      } else if (states[i] == 1) {
+        fill('#D6FFB7');
+      } else {
+        fill(255);
+      }
+      rect(i * w, height - values[i], w, values[i]);
+    }
+  }
+
+  async function swap(arr, a, b) {
+    await sleep(100);
+    let temp = arr[a];
+    arr[a] = arr[b];
+    arr[b] = temp;
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+</script>
+
+</html>
